@@ -1,0 +1,13 @@
+Groundedness and Faithfulness in RAG
+
+Groundedness measures whether a generated response is supported by the retrieved documents. A response is grounded if all its factual claims can be traced to the provided context.
+
+Faithfulness measures whether the generation accurately represents the source material without adding unsupported information.
+
+Common groundedness failures:
+1. The model adds plausible-sounding but unsupported claims
+2. The model combines information from multiple sources incorrectly
+3. The model ignores retrieved context and relies on parametric knowledge
+4. The model hallucinates citations that don't match the source
+
+Even with perfect retrieval, generation can produce ungrounded responses. This is a fundamental limitation of RAG: retrieval and generation are separate stages, and the generator may not faithfully use the retrieved context.

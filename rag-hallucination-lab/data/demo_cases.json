@@ -1,0 +1,259 @@
+{
+  "cases": [
+    {
+      "id": "no_rag_hallucination",
+      "name": "LLM Sin RAG - Riesgo de Alucinación",
+      "query": "¿RAG elimina completamente las alucinaciones?",
+      "mode": "llm",
+      "description": "El modo LLM debe producir una respuesta plausible que contenga una afirmación incorrecta.",
+      "expected_result": "hallucination_risk",
+      "answer": "Sí, RAG elimina completamente las alucinaciones. Al proporcionar contexto externo verificado, RAG garantiza que el modelo solo genere información factual y precisa. Estudios han demostrado que RAG reduce las alucinaciones a cero en benchmarks estándar como TruthfulQA y HaluEval.",
+      "documents": [],
+      "claims": [
+        {
+          "text": "RAG elimina completamente las alucinaciones",
+          "status": "unsupported",
+          "source": null,
+          "confidence": 0.0,
+          "explanation": "Afirmación falsa: RAG reduce pero no elimina las alucinaciones"
+        },
+        {
+          "text": "RAG garantiza que el modelo solo genere información factual y precisa",
+          "status": "unsupported",
+          "source": null,
+          "confidence": 0.0,
+          "explanation": "Afirmación falsa: No hay garantía de precisión factual"
+        },
+        {
+          "text": "Estudios han demostrado que RAG reduce las alucinaciones a cero",
+          "status": "contradicted",
+          "source": null,
+          "confidence": 0.0,
+          "explanation": "Contradicho por la literatura: Shuster et al. (2021), Magesh et al. (2025)"
+        }
+      ],
+      "evaluation": {
+        "retrieval": 0.0,
+        "groundedness": 0.15,
+        "citation": 0.0
+      },
+      "pipeline": {
+        "query": "success",
+        "retrieval": "idle",
+        "context": "idle",
+        "generation": "warning",
+        "evaluation": "warning"
+      },
+      "educational_explanation": "Sin RAG, el modelo depende únicamente de su conocimiento paramétrico, que puede contener información incorrecta o desactualizada. El modelo genera una respuesta que suena plausible pero contiene afirmaciones falsas presentadas con confianza."
+    },
+    {
+      "id": "rag_correct",
+      "name": "RAG Correcto - Respuesta Fundamentada",
+      "query": "¿Qué problema busca mitigar RAG?",
+      "mode": "rag",
+      "description": "El sistema debe recuperar los documentos relacionados y producir una respuesta respaldada.",
+      "expected_result": "grounded_answer",
+      "answer": "RAG busca mitigar el problema de las alucinaciones en Grandes Modelos de Lenguaje. Las alucinaciones son instancias donde el modelo genera información que suena plausible pero es factualmente incorrecta. Al proporcionar contexto externo relevante recuperado de una base de conocimiento, RAG fundamenta la generación en información verificada.",
+      "documents": [
+        {
+          "id": "document_01",
+          "name": "document_01.txt",
+          "content": "Retrieval-Augmented Generation (RAG) is a technique that enhances Large Language Models (LLMs) by providing relevant external information as context during generation... RAG was introduced by Lewis et al. (2020) as a method to improve factual accuracy and reduce hallucinations in language models.",
+          "score": 0.94,
+          "metadata": {}
+        },
+        {
+          "id": "document_05",
+          "name": "document_05.txt",
+          "content": "While RAG reduces hallucination frequency compared to parametric LLMs, it does not eliminate them... Research by Shuster et al. (2021) shows retrieval augmentation reduces but doesn't eliminate hallucinations.",
+          "score": 0.87,
+          "metadata": {}
+        }
+      ],
+      "claims": [
+        {
+          "text": "RAG busca mitigar el problema de las alucinaciones en Grandes Modelos de Lenguaje",
+          "status": "supported",
+          "source": "document_01",
+          "confidence": 0.95,
+          "explanation": "Directamente respaldado por document_01: 'RAG was introduced by Lewis et al. (2020) as a method to improve factual accuracy and reduce hallucinations'"
+        },
+        {
+          "text": "Las alucinaciones son instancias donde el modelo genera información que suena plausible pero es factualmente incorrecta",
+          "status": "supported",
+          "source": "document_01",
+          "confidence": 0.90,
+          "explanation": "Consistente con la definición estándar de alucinación en LLM"
+        },
+        {
+          "text": "Al proporcionar contexto externo relevante recuperado de una base de conocimiento, RAG fundamenta la generación en información verificada",
+          "status": "supported",
+          "source": "document_01",
+          "confidence": 0.92,
+          "explanation": "Resumen preciso del mecanismo RAG descrito en document_01"
+        }
+      ],
+      "evaluation": {
+        "retrieval": 0.95,
+        "groundedness": 0.93,
+        "citation": 0.91
+      },
+      "pipeline": {
+        "query": "success",
+        "retrieval": "success",
+        "context": "success",
+        "generation": "success",
+        "evaluation": "success"
+      },
+      "educational_explanation": "RAG recuperó correctamente los documentos relevantes (document_01 y document_05) y generó una respuesta donde todas las afirmaciones están respaldadas por las fuentes citadas. Este es el caso ideal de funcionamiento de RAG."
+    },
+    {
+      "id": "retrieval_failure",
+      "name": "Fallo de Recuperación - Información No Encontrada",
+      "query": "¿Qué modelo de embedding específico se recomienda para RAG en dominios biomédicos según los documentos?",
+      "mode": "rag",
+      "description": "La respuesta correcta existe en los documentos pero no es recuperada correctamente.",
+      "expected_result": "retrieval_failure",
+      "answer": "Los documentos proporcionados no mencionan modelos de embedding específicos para dominios biomédicos. Los documentos cubren conceptos generales de RAG, embeddings, groundedness y limitaciones, pero no entran en recomendaciones específicas por dominio.",
+      "documents": [
+        {
+          "id": "document_02",
+          "name": "document_02.txt",
+          "content": "The retrieval component of RAG uses dense vector representations (embeddings) to find semantically similar documents... Key factors affecting retrieval quality: Chunking strategy, Embedding model quality, Similarity metric, Number of retrieved documents (k)",
+          "score": 0.62,
+          "metadata": {}
+        }
+      ],
+      "claims": [
+        {
+          "text": "Los documentos proporcionados no mencionan modelos de embedding específicos para dominios biomédicos",
+          "status": "supported",
+          "source": "document_02",
+          "confidence": 0.85,
+          "explanation": "Correcto: document_02 habla de embeddings en general pero no menciona dominio biomédico"
+        }
+      ],
+      "evaluation": {
+        "retrieval": 0.35,
+        "groundedness": 0.80,
+        "citation": 0.75
+      },
+      "pipeline": {
+        "query": "success",
+        "retrieval": "warning",
+        "context": "success",
+        "generation": "success",
+        "evaluation": "success"
+      },
+      "educational_explanation": "Fallo de recuperación: La información específica sobre embeddings biomédicos no existe en la base de conocimiento. El sistema recuperó document_02 (embeddings generales) pero no encontró la información específica solicitada. Esto demuestra que RAG falla cuando el conocimiento requerido no está en el corpus."
+    },
+    {
+      "id": "groundedness_failure",
+      "name": "Fallo de Groundedness - CASO CLAVE DEL PAPER",
+      "query": "Según los documentos, ¿cuál es la tasa de eliminación de alucinaciones que logra RAG?",
+      "mode": "rag_eval",
+      "description": "El sistema recupera correctamente un documento relevante, pero la generación produce una afirmación no sustentada.",
+      "expected_result": "groundedness_failure",
+      "answer": "Según los documentos, RAG logra una tasa de eliminación de alucinaciones del 94.7% en benchmarks estándar, reduciendo las alucinaciones casi por completo cuando se configura correctamente con embeddings de alta calidad y una base de conocimiento exhaustiva.",
+      "documents": [
+        {
+          "id": "document_03",
+          "name": "document_03.txt",
+          "content": "Groundedness measures whether a generated response is supported by the retrieved documents... Even with perfect retrieval, generation can produce ungrounded responses. This is a fundamental limitation of RAG: retrieval and generation are separate stages, and the generator may not faithfully use the retrieved context.",
+          "score": 0.91,
+          "metadata": {}
+        },
+        {
+          "id": "document_05",
+          "name": "document_05.txt",
+          "content": "While RAG reduces hallucination frequency compared to parametric LLMs, it does not eliminate them... Magesh et al. (2025) demonstrate that 'hallucination-free' RAG is not achievable with current architectures.",
+          "score": 0.89,
+          "metadata": {}
+        }
+      ],
+      "claims": [
+        {
+          "text": "RAG logra una tasa de eliminación de alucinaciones del 94.7% en benchmarks estándar",
+          "status": "unsupported",
+          "source": "document_03",
+          "confidence": 0.0,
+          "explanation": "FALLO DE GROUNDEDNESS: document_03 dice 'Even with perfect retrieval, generation can produce ungrounded responses' y document_05 dice 'does not eliminate them'. NO hay ninguna tasa del 94.7% en los documentos."
+        },
+        {
+          "text": "Reduciendo las alucinaciones casi por completo cuando se configura correctamente",
+          "status": "contradicted",
+          "source": "document_05",
+          "confidence": 0.0,
+          "explanation": "CONTRADICHO: document_05 establece explícitamente 'does not eliminate them' y 'hallucination-free RAG is not achievable'"
+        },
+        {
+          "text": "RAG reduce la frecuencia de alucinaciones comparado con LLMs paramétricos",
+          "status": "supported",
+          "source": "document_05",
+          "confidence": 0.94,
+          "explanation": "Respaldo directo: document_05 'While RAG reduces hallucination frequency compared to parametric LLMs'"
+        }
+      ],
+      "evaluation": {
+        "retrieval": 0.92,
+        "groundedness": 0.42,
+        "citation": 0.48
+      },
+      "pipeline": {
+        "query": "success",
+        "retrieval": "success",
+        "context": "success",
+        "generation": "warning",
+        "evaluation": "warning"
+      },
+      "educational_explanation": "CASO CLAVE DEL PAPER: El sistema recuperó correctamente document_03 y document_05 (retrieval exitoso, score 0.91 y 0.89). Sin embargo, el generador produjo una afirmación FALSA ('tasa del 94.7%') que NO está en ningún documento. Esto demuestra la tesis central: RAG puede recuperar información correctamente y AÚN ASÍ generar una respuesta incorrecta. La recuperación y la generación son etapas separadas."
+    },
+    {
+      "id": "citation_failure",
+      "name": "Fallo de Citación - Cita No Respalda La Afirmación",
+      "query": "¿Qué dice document_03 sobre la relación entre retrieval perfecto y groundedness?",
+      "mode": "rag_eval",
+      "description": "La respuesta incluye una cita que aparentemente corresponde a un documento, pero el documento no respalda exactamente la afirmación.",
+      "expected_result": "citation_failure",
+      "answer": "Document_03 establece que con retrieval perfecto, la groundedness está garantizada al 100% porque el generador siempre utiliza fielmente el contexto recuperado sin añadir información no verificada [document_03].",
+      "documents": [
+        {
+          "id": "document_03",
+          "name": "document_03.txt",
+          "content": "Groundedness measures whether a generated response is supported by the retrieved documents... Even with perfect retrieval, generation can produce ungrounded responses. This is a fundamental limitation of RAG: retrieval and generation are separate stages, and the generator may not faithfully use the retrieved context.",
+          "score": 0.93,
+          "metadata": {}
+        }
+      ],
+      "claims": [
+        {
+          "text": "Con retrieval perfecto, la groundedness está garantizada al 100%",
+          "status": "contradicted",
+          "source": "document_03",
+          "confidence": 0.0,
+          "explanation": "FALLO DE CITACIÓN: Se cita document_03 pero el documento dice LO CONTRARIO: 'Even with perfect retrieval, generation can produce ungrounded responses'"
+        },
+        {
+          "text": "El generador siempre utiliza fielmente el contexto recuperado sin añadir información no verificada",
+          "status": "contradicted",
+          "source": "document_03",
+          "confidence": 0.0,
+          "explanation": "CONTRADICHO: document_03 dice 'the generator may not faithfully use the retrieved context'"
+        }
+      ],
+      "evaluation": {
+        "retrieval": 0.93,
+        "groundedness": 0.25,
+        "citation": 0.30
+      },
+      "pipeline": {
+        "query": "success",
+        "retrieval": "success",
+        "context": "success",
+        "generation": "warning",
+        "evaluation": "warning"
+      },
+      "educational_explanation": "Fallo de citación: El sistema recuperó correctamente document_03, pero la respuesta generada cita este documento para respaldar una afirmación que el documento CONTRADICE explícitamente. La cita aparenta dar credibilidad pero el contenido citado no respalda la claim. Esto es un fallo de citation accuracy."
+    }
+  ]
+}

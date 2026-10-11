@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 240 5% 96%;
+  --foreground: 240 5% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 5% 12%;
+  --primary: 211 100% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 5% 96%;
+  --secondary-foreground: 240 5% 12%;
+  --muted: 240 5% 94%;
+  --muted-foreground: 240 3% 45%;
+  --accent: 211 100% 96%;
+  --accent-foreground: 211 100% 38%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 240 6% 90%;
+  --input: 240 6% 88%;
+  --ring: 211 100% 50%;
+  --success: 142 58% 38%;
+  --warning: 35 92% 42%;
+  --info: 211 100% 50%;
+  --radius: 0.875rem;
+}
+
+@layer base {
+  * { @apply border-border; }
+
+  html { @apply bg-background; }
+
+  body {
+    @apply min-h-screen bg-background text-foreground antialiased;
+    font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  button, a, input, textarea, select { @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background; }
+  button:disabled { @apply cursor-not-allowed; }
+  ::selection { background: hsl(var(--primary) / 0.16); color: hsl(var(--foreground)); }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .surface { @apply border border-border/80 bg-card shadow-[0_1px_2px_rgb(0_0_0/0.025)]; }
+  .glass { @apply border border-border/70 bg-card/80 backdrop-blur-xl; }
+}
+
+/* Deliberately quiet, so the interface remains focused on research evidence. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border: 3px solid hsl(var(--background)); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.55); }

@@ -1,0 +1,10 @@
+What is Retrieval-Augmented Generation (RAG)?
+
+Retrieval-Augmented Generation (RAG) is a technique that enhances Large Language Models (LLMs) by providing relevant external information as context during generation. Instead of relying solely on parametric knowledge stored in model weights, RAG systems retrieve relevant documents from a knowledge base and include them in the prompt.
+
+The RAG pipeline consists of three main stages:
+1. Retrieval: Finding relevant documents using semantic search
+2. Augmentation: Incorporating retrieved documents into the prompt
+3. Generation: Producing an answer conditioned on the retrieved context
+
+RAG was introduced by Lewis et al. (2020) as a method to improve factual accuracy and reduce hallucinations in language models.

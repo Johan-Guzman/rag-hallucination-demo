@@ -1,0 +1,12 @@
+Citation Failure in RAG Systems
+
+Citation failure occurs when a generated response includes a citation that does not accurately support the associated claim. This can manifest in several ways:
+
+1. The cited document does not contain the claimed information
+2. The cited document contains contradictory information
+3. The citation is hallucinated (references a non-existent document)
+4. The citation is partially correct but omits critical context
+
+Citation accuracy requires both correct retrieval and faithful generation. A system may retrieve the right document but generate a claim that goes beyond what the document supports, then cite that document as evidence.
+
+Evaluating citation quality requires checking the alignment between each claim and its cited source, not just verifying that retrieval succeeded.
