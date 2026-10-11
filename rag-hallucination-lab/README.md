@@ -62,6 +62,11 @@ uvicorn app.main:app --reload
 
 Backend runs at: http://localhost:8000
 API docs at: http://localhost:8000/docs
+Health check: http://localhost:8000/api/health
+
+The knowledge base is auto-detected from `DATA_DIR`, the current working
+directory, or the repository `data/` folder, so it also works when the server is
+started from inside `backend/`.
 
 ### Frontend Setup
 
@@ -75,28 +80,54 @@ Frontend runs at: http://localhost:3000
 
 ### Docker (Both Services)
 
+From the project root (`rag-hallucination-lab/`):
+
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
-- Backend: http://localhost:8000
+- Backend: http://localhost:8000 (health: http://localhost:8000/api/health)
 - Frontend: http://localhost:3000
+
+The backend healthcheck targets `/api/health` and uses Python's standard library
+(the `python:3.11-slim` image has no `curl`). The frontend waits for the backend
+to report healthy before starting.
 
 ## Environment Variables
 
 Copy `.env.example` to `.env` and configure:
 
 ```bash
-# Backend
+# Backend (backend/.env)
 LLM_PROVIDER=mock          # mock, openai, anthropic
 OPENAI_API_KEY=            # Required if not mock
 ANTHROPIC_API_KEY=         # Required if not mock
 MOCK_MODE=true             # Set false to use real APIs
+DATA_DIR=./data            # Knowledge base dir (documents + demo_cases.json)
 CHROMA_PERSIST_DIR=./data/chroma
+CORS_ORIGINS=*             # Comma-separated list of allowed origins
 
-# Frontend
-NEXT_PUBLIC_API_URL=http://localhost:8000
+# Frontend (frontend/.env.local)
+NEXT_PUBLIC_API_URL=       # Empty => same-origin proxy (recommended)
+# BACKEND_URL=http://localhost:8000  # Proxy target; set by Docker Compose
 ```
+
+### How the frontend talks to the backend
+
+All API calls are centralized in `frontend/src/lib/api.ts` and use the `/api`
+prefix, e.g. `GET /api/health`.
+
+By default (`NEXT_PUBLIC_API_URL` empty) requests are sent **same-origin** and
+Next.js proxies them to the backend through the rewrite in `next.config.js`:
+
+- Browser (or any client) → `http://localhost:3000/api/...`
+- Next.js server → `BACKEND_URL` (Docker Compose: `http://backend:8000`;
+  local default: `http://localhost:8000`)
+
+Using a same-origin proxy avoids CORS issues and the classic Docker mistake of
+pointing `localhost` at the frontend container instead of the backend service.
+Setting `NEXT_PUBLIC_API_URL` to an absolute URL bypasses the proxy and makes
+the browser call the backend directly.
 
 ## MOCK MODE
 
@@ -109,7 +140,27 @@ When `MOCK_MODE=true`:
 - Groundedness and citation metrics are illustrative
 - All 5 demo cases work reproducibly
 
+The mock RAG service (`backend/app/services/rag_service.py`) is fully
+self-contained: it loads the five documents and `demo_cases.json` from
+`DATA_DIR` and keeps everything in memory. **There is no Chroma dependency in
+MOCK MODE** — `CHROMA_PERSIST_DIR` is reserved for a future real vector store.
+
 This enables offline presentation at conferences.
+
+## API Endpoints
+
+All routes are mounted under the `/api` prefix.
+
+| Method | Path | Body | Response |
+|--------|------|------|----------|
+| GET | `/api/health` | — | `{ status, mock_mode, version }` |
+| POST | `/api/query` | `{ query, mode, top_k }` | `QueryResponse` (answer, documents, claims, evaluation, pipeline) |
+| GET | `/api/documents` | — | `{ documents: Document[] }` |
+| GET | `/api/demo-cases` | — | `{ cases: DemoCase[] }` |
+| GET | `/` | — | API metadata |
+| GET | `/docs` | — | Interactive OpenAPI docs |
+
+`mode` is one of `llm`, `rag`, `rag_eval`.
 
 ## Demo Cases
 
@@ -202,6 +253,8 @@ rag-hallucination-lab/
 │   │   └── types/index.ts         # TypeScript types
 │   ├── package.json
 │   ├── tailwind.config.ts
+│   ├── next.config.js             # Same-origin /api proxy -> BACKEND_URL
+│   ├── .env.example               # Frontend env template
 │   └── Dockerfile
 ├── data/
 │   ├── document_01.txt ... document_05.txt

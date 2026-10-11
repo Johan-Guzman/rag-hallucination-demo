@@ -7,17 +7,48 @@ from app.models.schemas import Document, QueryRequest, QueryResponse, Mode, Clai
 from app.core.config import settings
 
 
+def _resolve_data_dir() -> Path:
+    """Locate the knowledge-base directory regardless of the working directory.
+
+    The configured DATA_DIR wins (Docker sets it to /app/data). When it is not
+    present, fall back to the current working directory and finally to the
+    repository ``data`` folder relative to this file, so local runs from the
+    ``backend/`` directory also find the documents.
+    """
+    configured = Path(settings.data_dir).expanduser()
+    candidates = [
+        configured,
+        Path.cwd() / "data",
+        Path(__file__).resolve().parents[3] / "data",
+    ]
+
+    def has_demo_data(path: Path) -> bool:
+        return path.is_dir() and (
+            (path / "demo_cases.json").is_file()
+            or any(path.glob("document_0*.txt"))
+        )
+
+    # Prefer a directory that actually contains the demo knowledge base.
+    for candidate in candidates:
+        if has_demo_data(candidate):
+            return candidate
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
+    return configured
+
+
 class MockRAGService:
     def __init__(self):
+        self.data_dir = _resolve_data_dir()
         self.documents = self._load_documents()
         self.demo_cases = self._load_demo_cases()
         self._initialized = False
 
     def _load_documents(self) -> List[Document]:
         docs = []
-        data_dir = Path("data")
         for i in range(1, 6):
-            file_path = data_dir / f"document_0{i}.txt"
+            file_path = self.data_dir / f"document_0{i}.txt"
             if file_path.exists():
                 content = file_path.read_text(encoding="utf-8")
                 docs.append(Document(
@@ -29,7 +60,7 @@ class MockRAGService:
         return docs
 
     def _load_demo_cases(self) -> dict:
-        cases_path = Path("data/demo_cases.json")
+        cases_path = self.data_dir / "demo_cases.json"
         if cases_path.exists():
             with open(cases_path, "r", encoding="utf-8") as f:
                 return json.load(f)

@@ -9,10 +9,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Origins are configurable via CORS_ORIGINS (comma-separated, or "*").
+# Credentials are disabled so that the wildcard default stays spec-compliant.
+cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins or ["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

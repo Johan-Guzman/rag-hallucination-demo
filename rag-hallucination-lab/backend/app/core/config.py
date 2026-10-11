@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     vector_store: str = "chroma"
     chroma_persist_dir: str = "./data/chroma"
 
+    # Data / knowledge base
+    data_dir: str = "./data"
+
+    # CORS (comma-separated list of origins, or "*" for any)
+    cors_origins: str = "*"
+
     # Mock Mode
     mock_mode: bool = True
 

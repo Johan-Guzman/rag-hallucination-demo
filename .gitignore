@@ -1,0 +1,116 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Next.js
+.next/
+out/
+build/
+dist/
+next-env.d.ts
+.turbo/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+*.so
+
+# Python virtual environments
+venv/
+.venv/
+env/
+ENV/
+.conda/
+
+# Python packaging
+pip-wheel-metadata/
+*.egg
+*.egg-info/
+wheels/
+share/python-wheels/
+.eggs/
+
+# Testing and coverage
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+.hypothesis/
+.mypy_cache/
+.dmypy.json
+.pyre/
+.ruff_cache/
+coverage.xml
+junit.xml
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+uvicorn.log
+
+# Build and temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# IDEs and editors
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.sublime-workspace
+
+# TypeScript
+*.tsbuildinfo
+
+# Docker
+.docker/
+
+# Databases and local data
+*.sqlite
+*.sqlite3
+*.db
+
+# Model files and generated data
+__pycache__/
+*.pkl
+*.pickle
+*.joblib
+*.pt
+*.pth
+*.onnx
+
+# Local uploads and generated files
+uploads/
+tmp/
+temp/
+
+# OS
+Desktop.ini
+
+# Optional: local documentation builds
+site/
+
+# Optional: local Python package manager files
+.python-version.local
