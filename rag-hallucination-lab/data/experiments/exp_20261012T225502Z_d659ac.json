@@ -1,0 +1,149 @@
+{
+  "id": "exp_20261012T225502Z_d659ac",
+  "created_at": "2026-10-12T22:55:02+00:00",
+  "questions": [
+    "¿Qué problema busca mitigar RAG?"
+  ],
+  "modes": [
+    "llm"
+  ],
+  "document_ids": [
+    "document_01",
+    "document_02",
+    "document_03",
+    "document_04",
+    "document_05",
+    "upload_guion_exposicion_alucinaciones_r_3bb56456"
+  ],
+  "document_names": [
+    "document_01.txt",
+    "document_02.txt",
+    "document_03.txt",
+    "document_04.txt",
+    "document_05.txt",
+    "Guion_Exposicion_Alucinaciones_RAG.pdf"
+  ],
+  "top_k": 5,
+  "provider": "gemini",
+  "model": "gemini-flash-latest",
+  "cells": [
+    {
+      "question": "¿Qué problema busca mitigar RAG?",
+      "mode": "llm",
+      "status": "error",
+      "error": "Se alcanzó el límite de solicitudes de Gemini. Espera un momento e inténtalo de nuevo.",
+      "error_category": "rate_limit",
+      "answer": null,
+      "documents": [],
+      "claims": [],
+      "evaluation": null,
+      "metrics": null,
+      "provider": null,
+      "model": null,
+      "evidence_sufficient": null,
+      "latency_ms": 0.0
+    }
+  ],
+  "aggregates": [
+    {
+      "key": "groundedness",
+      "label": "Fundamentación (groundedness)",
+      "unit": "%",
+      "higher_is_better": true,
+      "definition": "Afirmaciones respaldadas por el contexto recuperado / afirmaciones totales. Para la condición C las afirmaciones se clasifican una a una con un verificador (juez LLM cuando el proveedor es Gemini).",
+      "values": {
+        "llm": null
+      },
+      "best_mode": null,
+      "samples": {
+        "llm": 0
+      },
+      "comparable": false
+    },
+    {
+      "key": "citation_attribution",
+      "label": "Atribución de citas",
+      "unit": "%",
+      "higher_is_better": true,
+      "definition": "Citas que apuntan a fragmentos realmente recuperados / citas emitidas. Indefinida sin recuperación (condición A).",
+      "values": {
+        "llm": null
+      },
+      "best_mode": null,
+      "samples": {
+        "llm": 0
+      },
+      "comparable": false
+    },
+    {
+      "key": "unsupported_rate",
+      "label": "Afirmaciones sin soporte",
+      "unit": "%",
+      "higher_is_better": false,
+      "definition": "Afirmaciones sin respaldo o contradichas / afirmaciones totales. Un valor menor es mejor.",
+      "values": {
+        "llm": null
+      },
+      "best_mode": null,
+      "samples": {
+        "llm": 0
+      },
+      "comparable": false
+    },
+    {
+      "key": "abstention",
+      "label": "Abstención (evidencia insuficiente)",
+      "unit": "%",
+      "higher_is_better": true,
+      "definition": "Proporción de respuestas en las que el sistema reconoce que la evidencia recuperada no basta en lugar de inventar. No mide por sí sola si la abstención era la decisión correcta.",
+      "values": {
+        "llm": null
+      },
+      "best_mode": null,
+      "samples": {
+        "llm": 0
+      },
+      "comparable": false
+    },
+    {
+      "key": "retrieval_score",
+      "label": "Relevancia de recuperación (proxy)",
+      "unit": "",
+      "higher_is_better": true,
+      "definition": "Media de la puntuación heurística (Jaccard) de los fragmentos recuperados. Es un proxy de relevancia, no un recall con verdad de referencia. Indefinida sin recuperación (condición A).",
+      "values": {
+        "llm": null
+      },
+      "best_mode": null,
+      "samples": {
+        "llm": 0
+      },
+      "comparable": false
+    },
+    {
+      "key": "latency_ms",
+      "label": "Latencia media",
+      "unit": "ms",
+      "higher_is_better": false,
+      "definition": "Tiempo medio de respuesta medido en el backend, en milisegundos.",
+      "values": {
+        "llm": null
+      },
+      "best_mode": null,
+      "samples": {
+        "llm": 0
+      },
+      "comparable": false
+    }
+  ],
+  "status_counts": {
+    "ok": 0,
+    "error": 1
+  },
+  "notes": [
+    "Las tres condiciones se ejecutan sobre las mismas preguntas y los mismos documentos para permitir una comparación justa.",
+    "Gemini puede variar entre ejecuciones; las diferencias observadas no son por sí solas pruebas concluyentes.",
+    "No se ejecutaron las tres condiciones; la comparación está incompleta.",
+    "1 celdas fallaron; no cuentan para los promedios y se muestran como errores en la tabla por pregunta."
+  ]
+}

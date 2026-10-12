@@ -8,8 +8,15 @@ services:
     volumes:
       - ./backend:/app
       - ./data:/app/data
+    # Configuration (provider selection + API key) is read from backend/.env, the
+    # same file used for local runs. This is the single source of truth: to run
+    # with Gemini, set LLM_PROVIDER=gemini and GEMINI_API_KEY there. The file is
+    # excluded from the image by .dockerignore, so the key is never baked in.
+    # `required: false` keeps the stack working in mock mode when it is absent.
+    env_file:
+      - path: ./backend/.env
+        required: false
     environment:
-      - MOCK_MODE=true
       # Knowledge base lives in the mounted ./data volume (documents + demo_cases.json)
       - DATA_DIR=/app/data
       # Reserved for a future real vector store; the current mock is in-memory.

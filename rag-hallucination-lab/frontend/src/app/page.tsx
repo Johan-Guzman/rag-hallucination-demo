@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { apiGetDemoCases, apiHealth, apiGetDocuments } from '@/lib/api';
-import type { DemoCase, HealthResponse, Document } from '@/types';
+import type { DemoCase, HealthResponse, DocumentRecord } from '@/types';
 import {
   FlaskConical,
   FileText,
@@ -21,7 +21,7 @@ import {
 
 export default function OverviewPage() {
   const [demoCases, setDemoCases] = useState<DemoCase[]>([]);
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -58,7 +58,9 @@ export default function OverviewPage() {
           <Badge variant="outline">v1.0.0</Badge>
           {health && (
             <Badge variant={health.mock_mode ? 'warning' : 'success'}>
-              {health.mock_mode ? 'Mock Mode' : 'Live Mode'}
+              {health.mock_mode
+                ? 'Mock Mode'
+                : `Live · ${health.provider ?? 'llm'}${health.model ? ` (${health.model})` : ''}`}
             </Badge>
           )}
         </div>

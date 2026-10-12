@@ -9,13 +9,18 @@ import {
   GitCompare,
   FileText,
   BookOpen,
+  FolderOpen,
+  ClipboardList,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
 
 const NAVIGATION = [
   { name: 'Overview', href: '/', icon: LayoutDashboard },
-  { name: 'Experiment', href: '/experiment', icon: FlaskConical },
+  { name: 'Documents', href: '/documents', icon: FolderOpen },
+  // Single consolidated experiments section: batch runs + charts + a quick
+  // single-query runner. The old standalone /experiment page was folded in here.
+  { name: 'Experiments', href: '/experiments', icon: ClipboardList },
   { name: 'Compare', href: '/compare', icon: GitCompare },
   { name: 'Paper Analysis', href: '/paper-analysis', icon: FileText },
   { name: 'Research Basis', href: '/research-basis', icon: BookOpen },
