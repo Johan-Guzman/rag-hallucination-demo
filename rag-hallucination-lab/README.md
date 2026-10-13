@@ -186,11 +186,12 @@ BACKEND_URL=https://rag-hallucination-demo-back.onrender.com
 # proxy instead of calling the backend directly:
 #   NEXT_PUBLIC_API_URL=
 
-# ALTERNATIVE — direct browser -> backend (requires the backend CORS list above
-# and, because NEXT_PUBLIC_* is inlined at BUILD time, a rebuild after change).
-# The Dockerfile declares it as a build ARG and Render passes the service's env
-# vars as build args:
-# NEXT_PUBLIC_API_URL=https://rag-hallucination-demo-back.onrender.com
+# IMPORTANT — do NOT set NEXT_PUBLIC_API_URL on the Render frontend service.
+# The production image intentionally ignores it: a stale value (e.g. the wrong
+# backend host) is inlined into the browser bundle at build time and silently
+# breaks every request. The browser always uses the same-origin proxy above.
+# Direct browser -> backend mode is only for local development, via
+# frontend/.env.local.
 ```
 
 > **Proxy target resolution.** The Next.js proxy uses `BACKEND_URL` when set. If

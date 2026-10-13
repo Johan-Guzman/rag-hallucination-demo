@@ -142,6 +142,14 @@ test('client appends /api exactly once for an absolute backend URL', () => {
 
 // --- static guarantee ------------------------------------------------------
 
+test('production Docker build does not bake NEXT_PUBLIC_API_URL', () => {
+  const dockerfile = readFileSync(join(frontendRoot, 'Dockerfile'), 'utf8');
+  const builder = dockerfile.split(/AS builder/i)[1].split(/^FROM /m)[0];
+  // A stale dashboard value must never be inlined into the browser bundle.
+  assert.doesNotMatch(builder, /ARG\s+NEXT_PUBLIC_API_URL/i);
+  assert.match(builder, /ENV\s+NEXT_PUBLIC_API_URL=""/i);
+});
+
 test('no client source file hardcodes localhost:8000', () => {
   const offenders = walk(join(frontendRoot, 'src')).filter((file) =>
     /localhost:8000|127\.0\.0\.1:8000/.test(readFileSync(file, 'utf8')),

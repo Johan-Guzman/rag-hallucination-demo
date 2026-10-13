@@ -40,12 +40,14 @@ CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0"]
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# NEXT_PUBLIC_* values are inlined into the client bundle at BUILD time.
-# Render injects the service's environment variables as Docker build args, so
-# declaring the ARG makes the dashboard value available to `next build`.
-# Empty (the default) => the browser uses the same-origin /api proxy below.
-ARG NEXT_PUBLIC_API_URL=""
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+# The production bundle intentionally does NOT honor NEXT_PUBLIC_API_URL.
+# A stale value in the hosting dashboard (e.g. the wrong backend host) would be
+# inlined into the client at build time and silently break every browser
+# request. Instead the browser always calls the same-origin /api proxy, and the
+# Next server forwards it to BACKEND_URL (set in the Render dashboard) or, when
+# unset, to the published backend. Local development can still point the client
+# directly at a backend through frontend/.env.local (see next.config.js).
+ENV NEXT_PUBLIC_API_URL=""
 RUN npm run build
 
 # ---------------------------------------------------------------------------
