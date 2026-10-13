@@ -43,6 +43,13 @@ class Settings(BaseSettings):
     #   * gemini-3.5-flash           -> works, but 429 after ~5 rapid calls
     #   * gemini-3.5-flash-lite      -> stable, 15/15 sustained calls OK  <-- default
     gemini_model: str = "gemini-3.5-flash-lite"
+    # Fallback chain: if the primary model fails with "unavailable", each of
+    # these is tried in order. Only GA models with confirmed availability.
+    gemini_fallback_models: list[str] = [
+        "gemini-3.5-flash",
+        "gemini-3.1-flash-lite",
+        "gemini-2.5-flash-lite",
+    ]
     gemini_temperature: float = 0.0
     # Generous enough that a cited, multi-section grounded answer is not cut off
     # mid-sentence (the model appends an evidence marker as its final line).

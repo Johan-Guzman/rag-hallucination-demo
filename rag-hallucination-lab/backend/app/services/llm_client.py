@@ -480,6 +480,78 @@ class GeminiLLMClient:
             f"{build_context(documents)}"
         )
 
+    # -- Fallback chain ---------------------------------------------------
+    def _model_chain(self) -> List[str]:
+        """Return [primary, *fallbacks] — deduplicated, never empty."""
+        chain = [self.model]
+        for fallback in settings.gemini_fallback_models:
+            if fallback not in chain:
+                chain.append(fallback)
+        return chain
+
+    async def _generate_with_fallback(
+        self,
+        contents: str,
+        config,
+        mode: Mode,
+        documents: Sequence[Document],
+        operation: str = "generate",
+    ) -> tuple:
+        """Try the primary model, then each fallback on 'unavailable' errors.
+
+        Returns (response, model_used). Raises the last LLMProviderError if all
+        models fail. Logs each attempt without leaking API keys or payloads.
+        """
+        client = self._ensure_client()
+        last_error: Optional[LLMProviderError] = None
+
+        for model in self._model_chain():
+            logger.info(
+                "Calling Gemini API | model=%s operation=%s context_fragments=%d",
+                model,
+                operation,
+                len(documents),
+            )
+            try:
+                response = await client.aio.models.generate_content(
+                    model=model,
+                    contents=contents,
+                    config=config,
+                )
+                raw_text = (getattr(response, "text", None) or "").strip()
+                if not raw_text:
+                    raise LLMProviderError(
+                        "empty",
+                        "El proveedor devolvió una respuesta vacía. Intenta de nuevo.",
+                    )
+                logger.info(
+                    "Gemini API responded | model=%s chars=%d",
+                    model,
+                    len(raw_text),
+                )
+                return response, model
+            except LLMProviderError:
+                raise  # non-retryable (auth, config, empty) — propagate immediately
+            except Exception as exc:  # noqa: BLE001 - normalized below
+                error = self._classify_error(exc)
+                logger.warning(
+                    "Gemini API call failed | model=%s category=%s operation=%s — trying next model",
+                    model,
+                    error.category,
+                    operation,
+                )
+                last_error = error
+                if error.category != "unavailable":
+                    raise error from exc
+
+        # All models exhausted.
+        logger.error(
+            "All Gemini models failed | operation=%s models_tried=%s",
+            operation,
+            ", ".join(self._model_chain()),
+        )
+        raise last_error  # type: ignore[misc] — always set when loop completes
+
     # -- Generation -------------------------------------------------------
     async def generate(
         self,
@@ -487,7 +559,6 @@ class GeminiLLMClient:
         mode: Mode,
         documents: Sequence[Document],
     ) -> GenerationResult:
-        client = self._ensure_client()
         try:
             from google.genai import types
         except ImportError:
@@ -501,41 +572,19 @@ class GeminiLLMClient:
             max_output_tokens=settings.gemini_max_output_tokens,
         )
 
-        logger.info(
-            "Calling Gemini API | model=%s mode=%s context_fragments=%d",
-            self.model,
-            mode.value,
-            len(documents),
+        response, model_used = await self._generate_with_fallback(
+            contents=self._contents(query, mode, documents),
+            config=config,
+            mode=mode,
+            documents=documents,
+            operation="generate",
         )
-        try:
-            response = await client.aio.models.generate_content(
-                model=self.model,
-                contents=self._contents(query, mode, documents),
-                config=config,
-            )
-        except Exception as exc:  # noqa: BLE001 - normalized below
-            error = self._classify_error(exc)
-            # Log the *category* only: never the key nor the raw provider payload.
-            logger.error(
-                "Gemini API call failed | model=%s category=%s",
-                self.model,
-                error.category,
-            )
-            raise error from exc
 
         raw_text = (getattr(response, "text", None) or "").strip()
-        logger.info(
-            "Gemini API responded | model=%s chars=%d",
-            self.model,
-            len(raw_text),
-        )
-        if not raw_text:
-            raise LLMProviderError(
-                "empty",
-                "El proveedor devolvió una respuesta vacía. Intenta de nuevo.",
-            )
-
-        return self._parse(raw_text, mode, documents)
+        result = self._parse(raw_text, mode, documents)
+        # Reflect the actual model that answered (may differ from self.model).
+        result.model = model_used
+        return result
 
     # -- Verification (claim-level judge) --------------------------------
     async def verify_claims(
@@ -551,7 +600,6 @@ class GeminiLLMClient:
         propagated so a verification that never ran is not mistaken for a clean
         verdict.
         """
-        client = self._ensure_client()
         try:
             from google.genai import types
         except ImportError:
@@ -570,28 +618,18 @@ class GeminiLLMClient:
             "FRAGMENTOS DE CONTEXTO (única fuente permitida):\n"
             f"{build_context(documents)}"
         )
-        logger.info(
-            "Calling Gemini verifier | model=%s context_fragments=%d",
-            self.model,
-            len(documents),
+        response, model_used = await self._generate_with_fallback(
+            contents=contents,
+            config=config,
+            mode=Mode.RAG_EVAL,
+            documents=documents,
+            operation="verify_claims",
         )
-        try:
-            response = await client.aio.models.generate_content(
-                model=self.model, contents=contents, config=config
-            )
-        except Exception as exc:  # noqa: BLE001 - normalized below
-            error = self._classify_error(exc)
-            logger.error(
-                "Gemini verifier call failed | model=%s category=%s",
-                self.model,
-                error.category,
-            )
-            raise error from exc
 
         raw_text = (getattr(response, "text", None) or "").strip()
         valid_ids = {doc.id.lower() for doc in documents}
         claims = parse_claims_json(raw_text, valid_ids)
-        logger.info("Gemini verifier classified %d claims", len(claims))
+        logger.info("Gemini verifier classified %d claims (model=%s)", len(claims), model_used)
         if not claims:
             raise LLMProviderError(
                 "empty",
@@ -606,7 +644,6 @@ class GeminiLLMClient:
         This is explicitly an LLM summary, not a measurement; the caller labels
         it as such in the API response.
         """
-        client = self._ensure_client()
         try:
             from google.genai import types
         except ImportError:
@@ -617,25 +654,17 @@ class GeminiLLMClient:
             temperature=0.0,
             max_output_tokens=settings.gemini_max_output_tokens,
         )
-        logger.info("Calling Gemini summarizer | model=%s name=%s", self.model, name)
-        try:
-            response = await client.aio.models.generate_content(
-                model=self.model,
-                contents=(
-                    "Resume en 2 o 3 frases, en el idioma del documento, de qué "
-                    f"trata el siguiente documento ({name}). Responde solo con el "
-                    f"resumen.\n\n{text}"
-                ),
-                config=config,
-            )
-        except Exception as exc:  # noqa: BLE001 - normalized below
-            error = self._classify_error(exc)
-            logger.error(
-                "Gemini summarizer call failed | model=%s category=%s",
-                self.model,
-                error.category,
-            )
-            raise error from exc
+        response, model_used = await self._generate_with_fallback(
+            contents=(
+                "Resume en 2 o 3 frases, en el idioma del documento, de qué "
+                f"trata el siguiente documento ({name}). Responde solo con el "
+                f"resumen.\n\n{text}"
+            ),
+            config=config,
+            mode=Mode.LLM,
+            documents=[],
+            operation="summarize",
+        )
         raw_text = (getattr(response, "text", None) or "").strip()
         if not raw_text:
             raise LLMProviderError("empty", "El resumen devuelto está vacío.")
@@ -651,7 +680,6 @@ class GeminiLLMClient:
         are marked ``supported``/``verified``; the rest stay ``uncertain``. No
         citation is ever invented on the caller's behalf.
         """
-        client = self._ensure_client()
         try:
             from google.genai import types
         except ImportError:
@@ -669,11 +697,16 @@ class GeminiLLMClient:
         key_points: List[str] = []
         conclusions: List[str] = []
         raw_claims: List[dict] = []
+        model_used = self.model
 
         for index, chunk in enumerate(chunks):
-            payload = await self._analyze_chunk(
-                client, types, chunk, name, index, len(chunks)
+            payload = await self._analyze_chunk_with_fallback(
+                chunk, name, index, len(chunks)
             )
+            if payload is None:
+                continue
+            if isinstance(payload, tuple):
+                payload, model_used = payload
             if not payload:
                 continue
             summary = str(payload.get("summary") or "").strip()
@@ -701,8 +734,8 @@ class GeminiLLMClient:
         conclusions_text = " ".join(conclusions).strip() or None
 
         if len(chunks) > 1:
-            synthesis = await self._synthesize(
-                client, types, name, summaries, key_points, conclusions
+            synthesis = await self._synthesize_with_fallback(
+                name, summaries, key_points, conclusions
             )
             if synthesis:
                 if synthesis.get("summary"):
@@ -730,7 +763,7 @@ class GeminiLLMClient:
         logger.info(
             "Gemini deep analysis | model=%s chunks=%d key_points=%d claims=%d "
             "(verified=%d)",
-            self.model,
+            model_used,
             len(chunks),
             len(unique_points),
             len(verified_claims),
@@ -743,6 +776,40 @@ class GeminiLLMClient:
             conclusions=conclusions_text,
             chunks_processed=len(chunks),
         )
+
+    async def _analyze_chunk_with_fallback(
+        self, chunk: str, name: str, index: int, total: int
+    ) -> Optional[tuple[dict, str]] | dict:
+        """Analyse one chunk, trying fallback models on 'unavailable' errors.
+
+        Returns (payload, model_used) on success, or None if all models fail
+        with non-retryable errors.
+        """
+        try:
+            from google.genai import types
+        except ImportError:
+            raise LLMProviderError(
+                "config", "El SDK oficial 'google-genai' no está instalado."
+            )
+
+        config = types.GenerateContentConfig(
+            system_instruction=ANALYST_SYSTEM_INSTRUCTION,
+            temperature=0.0,
+            max_output_tokens=ANALYST_MAX_OUTPUT_TOKENS,
+        )
+        contents = (
+            f"Documento: {name}\nFragmento {index + 1} de {total}:\n\n{chunk}"
+        )
+        response, model_used = await self._generate_with_fallback(
+            contents=contents,
+            config=config,
+            mode=Mode.LLM,
+            documents=[],
+            operation=f"analyze_chunk_{index + 1}_of_{total}",
+        )
+        raw_text = (getattr(response, "text", None) or "").strip()
+        payload = _extract_json_object(raw_text)
+        return payload, model_used
 
     async def _analyze_chunk(
         self, client, types, chunk: str, name: str, index: int, total: int
@@ -772,6 +839,49 @@ class GeminiLLMClient:
                 error.category,
             )
             raise error from exc
+        raw_text = (getattr(response, "text", None) or "").strip()
+        return _extract_json_object(raw_text)
+
+    async def _synthesize_with_fallback(
+        self,
+        name: str,
+        summaries: Sequence[str],
+        key_points: Sequence[str],
+        conclusions: Sequence[str],
+    ) -> Optional[dict]:
+        """Merge per-chunk findings, trying fallback models on 'unavailable' errors."""
+        try:
+            from google.genai import types
+        except ImportError:
+            raise LLMProviderError(
+                "config", "El SDK oficial 'google-genai' no está instalado."
+            )
+
+        contents = (
+            f"Documento: {name}\n\n"
+            "Resúmenes parciales por fragmento:\n"
+            + "\n".join(f"- {s}" for s in summaries)
+            + "\n\nIdeas clave parciales:\n"
+            + "\n".join(f"- {p}" for p in key_points)
+            + "\n\nConclusiones parciales:\n"
+            + "\n".join(f"- {c}" for c in conclusions)
+            + "\n\nEmite un resultado unificado."
+        )
+        config = types.GenerateContentConfig(
+            system_instruction=ANALYST_SYSTEM_INSTRUCTION,
+            temperature=0.0,
+            max_output_tokens=ANALYST_MAX_OUTPUT_TOKENS,
+        )
+        try:
+            response, _ = await self._generate_with_fallback(
+                contents=contents,
+                config=config,
+                mode=Mode.LLM,
+                documents=[],
+                operation="synthesize",
+            )
+        except LLMProviderError:
+            return None
         raw_text = (getattr(response, "text", None) or "").strip()
         return _extract_json_object(raw_text)
 

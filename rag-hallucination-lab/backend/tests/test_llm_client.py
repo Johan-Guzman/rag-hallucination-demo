@@ -471,3 +471,114 @@ async def test_analyze_raises_empty_when_model_returns_nothing():
     with pytest.raises(LLMProviderError) as exc:
         await client.analyze("Texto suficiente para analizar aquí.", "paper.txt")
     assert exc.value.category == "empty"
+
+
+# --------------------------------------------------------------------------
+# Fallback chain tests
+# --------------------------------------------------------------------------
+class _FallbackFakeClient:
+    """Fake client that fails with 'unavailable' for the first model, succeeds for the second."""
+
+    def __init__(self, fail_models: list[str], success_response):
+        self.fail_models = set(fail_models)
+        self.success_response = success_response
+        self.models = self
+        self.aio = self
+        self.calls: list[str] = []
+
+    async def generate_content(self, model, contents, config):
+        self.calls.append(model)
+        if model in self.fail_models:
+            raise _FakeSDKError("model not found", code=404)
+        return self.success_response
+
+
+async def test_fallback_retries_with_next_model_on_unavailable():
+    """When the primary model returns 'unavailable', the fallback model is tried."""
+    response = _FakeResponse(
+        "RAG reduce alucinaciones [document_01].\nEVIDENCIA: SUFICIENTE"
+    )
+    # Primary model 'gemini-3.5-flash-lite' fails, fallback 'gemini-3.5-flash' succeeds
+    fake = _FallbackFakeClient(
+        fail_models=["gemini-3.5-flash-lite"],
+        success_response=response,
+    )
+    client = GeminiLLMClient(
+        api_key="test",
+        model="gemini-3.5-flash-lite",
+        client=fake,
+    )
+    result = await client.generate("¿Qué es RAG?", Mode.RAG, _docs())
+    # The fallback model was used
+    assert result.model == "gemini-3.5-flash"
+    assert "gemini-3.5-flash" in fake.calls
+    assert "gemini-3.5-flash-lite" in fake.calls
+    # The answer is still valid
+    assert result.answer
+    assert result.claims
+
+
+async def test_fallback_skips_non_retryable_errors():
+    """Auth errors must NOT trigger fallback — they are non-retryable."""
+    fake = _FallbackFakeClient(
+        fail_models=[],  # will raise auth error for any model
+        success_response=None,
+    )
+    # Override to raise auth error
+    original_generate = fake.generate_content
+
+    async def generate_auth_error(model, contents, config):
+        fake.calls.append(model)
+        raise _FakeSDKError("API key not valid", code=400)
+
+    fake.generate_content = generate_auth_error
+
+    client = GeminiLLMClient(
+        api_key="test",
+        model="gemini-3.5-flash-lite",
+        client=fake,
+    )
+    with pytest.raises(LLMProviderError) as exc:
+        await client.generate("¿?", Mode.RAG, _docs())
+    assert exc.value.category == "auth"
+    # Only one model was tried — no fallback on auth errors
+    assert len(fake.calls) == 1
+
+
+async def test_fallback_raises_last_error_when_all_models_fail():
+    """When all models in the chain fail, the last error is raised."""
+    fake = _FallbackFakeClient(
+        fail_models=["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash-lite"],
+        success_response=None,
+    )
+    client = GeminiLLMClient(
+        api_key="test",
+        model="gemini-3.5-flash-lite",
+        client=fake,
+    )
+    with pytest.raises(LLMProviderError) as exc:
+        await client.generate("¿?", Mode.RAG, _docs())
+    assert exc.value.category == "unavailable"
+    # All models in the chain were tried
+    assert len(fake.calls) >= 4
+
+
+async def test_fallback_uses_first_available_model():
+    """If the first fallback succeeds, later models are not tried."""
+    response = _FakeResponse(
+        "RAG reduce alucinaciones [document_01].\nEVIDENCIA: SUFICIENTE"
+    )
+    fake = _FallbackFakeClient(
+        fail_models=["gemini-3.5-flash-lite"],  # only primary fails
+        success_response=response,
+    )
+    client = GeminiLLMClient(
+        api_key="test",
+        model="gemini-3.5-flash-lite",
+        client=fake,
+    )
+    await client.generate("¿Qué es RAG?", Mode.RAG, _docs())
+    # Only primary + first fallback were tried
+    assert len(fake.calls) == 2
+    assert fake.calls[0] == "gemini-3.5-flash-lite"
+    assert fake.calls[1] == "gemini-3.5-flash"
