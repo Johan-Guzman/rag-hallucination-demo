@@ -135,6 +135,51 @@ The backend healthcheck targets `/api/health` and uses Python's standard library
 (the `python:3.11-slim` image has no `curl`). The frontend waits for the backend
 to report healthy before starting.
 
+## Deploying on Render
+
+The demo runs as **two Render services**:
+
+| Service | Public URL |
+| --- | --- |
+| Backend (FastAPI) | `https://rag-hallucination-demo-back.onrender.com` |
+| Frontend (Next.js) | `https://rag-hallucination-demo-front.onrender.com` |
+
+Configure these **environment variables in the Render dashboard** (the `.env`
+files are intentionally gitignored, so the dashboard is the source of truth in
+production):
+
+**Backend service** (root directory: `backend/`)
+
+```env
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=<your Google AI Studio key>
+MOCK_MODE=false
+# Exact frontend origin, no trailing slash (comma-separate to add more):
+CORS_ORIGINS=https://rag-hallucination-demo-front.onrender.com
+# DATA_DIR defaults to ./data; the built-in corpus is baked into the image at
+# backend/data/ so /api/documents and /api/demo-cases are populated.
+```
+
+**Frontend service** (root directory: `frontend/`) — pick ONE of:
+
+```env
+# Option A (direct browser -> backend, CORS required):
+NEXT_PUBLIC_API_URL=https://rag-hallucination-demo-back.onrender.com
+
+# Option B (same-origin proxy, no CORS needed) — leave NEXT_PUBLIC_API_URL empty:
+BACKEND_URL=https://rag-hallucination-demo-back.onrender.com
+```
+
+The `.env.local` file can override these for local development only; it is
+gitignored and is **not** copied into the frontend image (`.dockerignore`
+excludes `.env*`), so it never affects the deploy.
+
+> The previously deployed frontend had `NEXT_PUBLIC_API_URL` set to
+> `https://rag-hallucination-demo.onrender.com` (a host that does not exist). That
+> is why documents, demo cases and health all failed in the browser. Fix the value
+> in the dashboard and **restart/redeploy the frontend**, then redeploy the backend
+> so the new CORS list and the bundled corpus take effect.
+
 ## Environment Variables
 
 Copy `.env.example` to `.env` and configure:
@@ -156,10 +201,14 @@ GEMINI_MAX_OUTPUT_TOKENS=2048
 
 DATA_DIR=./data            # Knowledge base dir (documents + demo_cases.json)
 CHROMA_PERSIST_DIR=./data/chroma
-CORS_ORIGINS=*             # Comma-separated list of allowed origins
+# Comma-separated list of allowed origins (exact origin, no trailing slash),
+# or "*" for any. Production frontend + local dev are the defaults:
+CORS_ORIGINS=https://rag-hallucination-demo-front.onrender.com,http://localhost:3000
 
 # Frontend (frontend/.env.local)
 NEXT_PUBLIC_API_URL=       # Empty => same-origin proxy (recommended)
+# Direct-access example (production backend):
+# NEXT_PUBLIC_API_URL=https://rag-hallucination-demo-back.onrender.com
 # BACKEND_URL=http://localhost:8000  # Proxy target; set by Docker Compose
 ```
 
