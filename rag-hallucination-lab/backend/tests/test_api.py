@@ -292,3 +292,25 @@ async def test_deep_analyze_provider_failure_maps_to_http(monkeypatch, tmp_path)
         )
     assert resp.status_code == 429
     assert resp.json()["detail"] == "límite alcanzado"
+
+
+# ---------------------------------------------------------------------------
+# CORS: the production frontend origin must be allowed so the browser can call
+# the backend directly (only needed when NEXT_PUBLIC_API_URL is used; the
+# same-origin proxy avoids CORS entirely).
+# ---------------------------------------------------------------------------
+async def test_cors_preflight_allows_production_frontend_origin():
+    origin = "https://rag-hallucination-demo-front.onrender.com"
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.options(
+            "/api/health",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+    assert resp.status_code == 200
+    allow_origin = resp.headers.get("access-control-allow-origin")
+    # Either the exact origin is echoed or the middleware allows any origin.
+    assert allow_origin in {origin, "*"}

@@ -160,25 +160,57 @@ CORS_ORIGINS=https://rag-hallucination-demo-front.onrender.com
 # backend/data/ so /api/documents and /api/demo-cases are populated.
 ```
 
-**Frontend service** (root directory: `frontend/`) — pick ONE of:
+**Frontend service** (root directory: `frontend/`)
+
+The service must run the **production** server, never `next dev`:
+
+| Setting | Value |
+| --- | --- |
+| Build command | `npm ci && npm run build` |
+| Start command | `npm run start -- -H 0.0.0.0 -p $PORT` |
+| Environment | Node (or Docker — then the Dockerfile default stage is used) |
+
+The bundled `frontend/Dockerfile` is multi-stage and its **default (last) stage is
+production**: it runs `npm run build` and starts `next start` bound to `0.0.0.0`
+on `$PORT`. If the Render service type is **Docker**, no build/start command needs
+to be set — just make sure the old `next dev` command is not overriding it. If the
+service is a **native Node** service, use the commands in the table.
+
+Then choose how the browser reaches the backend:
 
 ```env
-# Option A (direct browser -> backend, CORS required):
-NEXT_PUBLIC_API_URL=https://rag-hallucination-demo-back.onrender.com
-
-# Option B (same-origin proxy, no CORS needed) — leave NEXT_PUBLIC_API_URL empty:
+# RECOMMENDED — same-origin proxy (no CORS needed). Set the proxy target to the
+# real backend; the browser only ever calls the frontend origin (/api/*):
 BACKEND_URL=https://rag-hallucination-demo-back.onrender.com
+# Leave NEXT_PUBLIC_API_URL empty/unset so the browser uses the same-origin
+# proxy instead of calling the backend directly:
+#   NEXT_PUBLIC_API_URL=
+
+# ALTERNATIVE — direct browser -> backend (requires the backend CORS list above
+# and, because NEXT_PUBLIC_* is inlined at BUILD time, a rebuild after change).
+# The Dockerfile declares it as a build ARG and Render passes the service's env
+# vars as build args:
+# NEXT_PUBLIC_API_URL=https://rag-hallucination-demo-back.onrender.com
 ```
+
+> **Proxy target resolution.** The Next.js proxy uses `BACKEND_URL` when set. If
+> it is unset, it falls back to the published backend when `NODE_ENV=production`
+> (i.e. the production server and the Docker runner image) and to
+> `http://localhost:8000` **only** outside production. `localhost` is therefore
+> never used as a production target — the container can no longer proxy to
+> itself with `ECONNREFUSED ::1:8000`.
 
 The `.env.local` file can override these for local development only; it is
 gitignored and is **not** copied into the frontend image (`.dockerignore`
 excludes `.env*`), so it never affects the deploy.
 
-> The previously deployed frontend had `NEXT_PUBLIC_API_URL` set to
+> The previously deployed frontend ran `next dev` (from the old Dockerfile CMD)
+> and had `NEXT_PUBLIC_API_URL` set to
 > `https://rag-hallucination-demo.onrender.com` (a host that does not exist). That
-> is why documents, demo cases and health all failed in the browser. Fix the value
-> in the dashboard and **restart/redeploy the frontend**, then redeploy the backend
-> so the new CORS list and the bundled corpus take effect.
+> is why the service did not behave like production and why documents, demo cases
+> and health failed in the browser. Rebuild/redeploy the frontend so the new
+> production image (and, if used, the corrected build-time URL) takes effect, then
+> redeploy the backend so the new CORS list and the bundled corpus take effect.
 
 ## Environment Variables
 
@@ -237,7 +269,12 @@ Next.js proxies them to the backend through the rewrite in `next.config.js`:
 
 - Browser (or any client) → `http://localhost:3000/api/...`
 - Next.js server → `BACKEND_URL` (Docker Compose: `http://backend:8000`;
-  local default: `http://localhost:8000`)
+  production on Render: the published backend; local default:
+  `http://localhost:8000`)
+
+In production (`NODE_ENV=production`) the local-default fallback is replaced by
+the published Render backend, so the proxy never points at `localhost` after
+deployment. Set `BACKEND_URL` explicitly to make the target unambiguous.
 
 Using a same-origin proxy avoids CORS issues and the classic Docker mistake of
 pointing `localhost` at the frontend container instead of the backend service.
@@ -566,8 +603,9 @@ rag-hallucination-lab/
 │   ├── package.json
 │   ├── tailwind.config.ts
 │   ├── next.config.js              # Same-origin /api proxy -> BACKEND_URL
+│   ├── tests/next-config.test.mjs  # Asserts prod never targets localhost; no /api/api
 │   ├── .env.example                # Frontend env template
-│   └── Dockerfile
+│   └── Dockerfile                  # Multi-stage; default stage = production
 ├── data/
 │   ├── document_01.txt ... document_05.txt
 │   └── demo_cases.json
@@ -594,6 +632,21 @@ python -m venv .venv
 pip install -r requirements-dev.txt
 pytest -q
 ```
+
+### Frontend tests
+
+The frontend has a small regression suite (Node's built-in test runner, no extra
+dependency) that guards the production deployment configuration:
+
+```bash
+cd frontend
+npm test
+```
+
+It asserts that in production (`NODE_ENV=production`) the Next.js proxy target is
+the published backend and **never** `localhost:8000`, that `BACKEND_URL` overrides
+it, that the API base URL never becomes `/api/api`, and that no client source
+hardcodes `localhost:8000`.
 
 ### Docker with Gemini
 

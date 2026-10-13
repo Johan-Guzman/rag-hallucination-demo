@@ -68,3 +68,34 @@ def test_llm_provider_gemini_wins_even_with_mock_mode_true():
     s = Settings(llm_provider="gemini", mock_mode=True, _env_file=None)
     assert s.effective_provider == "gemini"
     assert s.is_mock is False
+
+
+# ---------------------------------------------------------------------------
+# CORS. The production frontend origin must be allowed by default, and values
+# coming from a hosting dashboard (often stored with a trailing slash) must be
+# normalized so they match the browser's Origin header.
+# ---------------------------------------------------------------------------
+def test_default_cors_allows_production_frontend_origin():
+    s = Settings(_env_file=None)
+    assert "https://rag-hallucination-demo-front.onrender.com" in s.cors_origin_list
+
+
+def test_cors_origins_are_trimmed_split_and_de_slashed():
+    s = Settings(
+        cors_origins="https://rag-hallucination-demo-front.onrender.com/, http://localhost:3000",
+        _env_file=None,
+    )
+    assert s.cors_origin_list == [
+        "https://rag-hallucination-demo-front.onrender.com",
+        "http://localhost:3000",
+    ]
+
+
+def test_cors_wildcard_is_preserved():
+    s = Settings(cors_origins="*", _env_file=None)
+    assert s.cors_origin_list == ["*"]
+
+
+def test_cors_empty_falls_back_to_wildcard():
+    s = Settings(cors_origins="", _env_file=None)
+    assert s.cors_origin_list == ["*"]
