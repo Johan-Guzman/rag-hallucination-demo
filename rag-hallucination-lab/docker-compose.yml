@@ -40,6 +40,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      # Use the development stage so the mounted source is served by `next dev`
+      # with hot reload. The default (last) stage is the production image Render
+      # builds and runs with `next start`.
+      target: dev
     ports:
       - "3000:3000"
     volumes:
