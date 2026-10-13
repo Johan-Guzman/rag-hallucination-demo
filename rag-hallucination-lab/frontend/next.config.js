@@ -22,7 +22,14 @@ const defaultBackendUrl = isProduction
 
 // Trailing slashes are stripped so `${backendUrl}/api/...` never yields
 // `//api` or `/api/api`.
-const backendUrl = (process.env.BACKEND_URL || defaultBackendUrl).replace(/\/+$/, '');
+const configuredUrl = (process.env.BACKEND_URL || defaultBackendUrl).replace(/\/+$/, '');
+
+// Hard safety net: if production somehow resolves to a localhost URL
+// (e.g. a stale BACKEND_URL in a hosting dashboard), replace it with the
+// published backend so the container never proxies to itself.
+const backendUrl = isProduction && /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?\/?$/i.test(configuredUrl)
+  ? PRODUCTION_BACKEND_URL
+  : configuredUrl;
 
 const nextConfig = {
   reactStrictMode: true,

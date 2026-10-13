@@ -115,14 +115,27 @@ def best_fragment(query: str, content: str) -> str:
 def _extract_pdf(data: bytes) -> str:
     try:
         from pypdf import PdfReader
+        from pypdf.errors import PdfReadError
     except ImportError as exc:  # pragma: no cover - dependency guarded
         raise ValueError(
             "La extracción de PDF requiere la librería 'pypdf'."
         ) from exc
     import io
 
-    reader = PdfReader(io.BytesIO(data))
-    pages = [(page.extract_text() or "") for page in reader.pages]
+    try:
+        reader = PdfReader(io.BytesIO(data))
+        if len(reader.pages) == 0:
+            return ""
+        pages = [(page.extract_text() or "") for page in reader.pages]
+    except PdfReadError as exc:
+        raise ValueError(
+            "No se pudo leer el PDF (archivo dañado o protegido)."
+        ) from exc
+    except Exception as exc:
+        logger.warning("PDF extraction failed: %s", exc)
+        raise ValueError(
+            "No se pudo leer el PDF (archivo dañado o protegido)."
+        ) from exc
     return "\n\n".join(pages).strip()
 
 

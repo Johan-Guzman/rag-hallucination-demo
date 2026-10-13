@@ -114,6 +114,26 @@ test('development keeps the localhost default (only outside production)', async 
   assert.equal(dest, 'http://localhost:8000/api/:path*');
 });
 
+test('production IGNORES BACKEND_URL=localhost:8000 and uses the real backend', async () => {
+  // Simulates a stale dashboard value — the most common cause of the
+  // ECONNREFUSED ::1:8000 error in production.
+  const dest = await rewriteDestination({
+    NODE_ENV: 'production',
+    BACKEND_URL: 'http://localhost:8000',
+  });
+  assert.equal(dest, `${PRODUCTION_BACKEND}/api/:path*`);
+  assert.doesNotMatch(dest, LOCALHOST);
+});
+
+test('production IGNORES BACKEND_URL=127.0.0.1:8000 and uses the real backend', async () => {
+  const dest = await rewriteDestination({
+    NODE_ENV: 'production',
+    BACKEND_URL: 'http://127.0.0.1:8000',
+  });
+  assert.equal(dest, `${PRODUCTION_BACKEND}/api/:path*`);
+  assert.doesNotMatch(dest, /127\.0\.0\.1/);
+});
+
 // --- API client (src/lib/api.ts) -------------------------------------------
 
 test('client falls back to the same-origin /api prefix', () => {
@@ -155,4 +175,77 @@ test('no client source file hardcodes localhost:8000', () => {
     /localhost:8000|127\.0\.0\.1:8000/.test(readFileSync(file, 'utf8')),
   );
   assert.deepEqual(offenders, []);
+});
+
+// --- Backend routes + CORS -------------------------------------------------
+
+// Expected route paths (without the /api prefix, which api.ts adds itself).
+// This guards against accidental duplication like /api/api/health.
+const EXPECTED_ROUTES = [
+  '/health',
+  '/demo-cases',
+  '/documents',
+  '/documents/upload',
+  '/documents/analyze',
+  '/query',
+  '/experiments/run',
+  '/experiments',
+  '/experiments/comparison',
+  '/experiments/demo',
+];
+
+test('api.ts defines all expected backend routes', () => {
+  const apiSource = readFileSync(apiTsPath, 'utf8');
+  for (const route of EXPECTED_ROUTES) {
+    // Routes may be static strings ('/health') or template literals
+    // (`/experiments/comparison${...}`). Check for the route prefix.
+    const escaped = route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`['\`]/${escaped.replace(/^\//, '')}`);
+    assert.ok(
+      pattern.test(apiSource),
+      `api.ts is missing the route: ${route}`,
+    );
+  }
+});
+
+test('api.ts never produces /api/api/* (no prefix duplication)', () => {
+  // When NEXT_PUBLIC_API_URL is empty, API_BASE_URL must be '/api',
+  // and request paths must not start with '/api' again.
+  assert.equal(loadApiBaseUrl(''), '/api');
+  const apiSource = readFileSync(apiTsPath, 'utf8');
+  // No request path may start with '/api' (would produce /api/api/...)
+  const requestPaths = apiSource.match(/request<[^>]+>\('([^']+)'/g) || [];
+  for (const match of requestPaths) {
+    const path = match.match(/'([^']+)'/)?.[1] ?? '';
+    assert.ok(
+      !path.startsWith('/api'),
+      `request path '${path}' starts with '/api' — would produce /api/api/...`,
+    );
+  }
+});
+
+test('backend /api/health responds and reports healthy', async () => {
+  const res = await fetch(`${PRODUCTION_BACKEND}/api/health`);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.status, 'healthy');
+  assert.ok(
+    typeof body.provider === 'string',
+    'health response should include the active provider',
+  );
+});
+
+test('backend allows CORS from the production frontend origin', async () => {
+  const res = await fetch(`${PRODUCTION_BACKEND}/api/health`, {
+    method: 'OPTIONS',
+    headers: {
+      Origin: 'https://rag-hallucination-demo-front.onrender.com',
+      'Access-Control-Request-Method': 'GET',
+    },
+  });
+  const allowOrigin = res.headers.get('access-control-allow-origin');
+  assert.ok(
+    allowOrigin === 'https://rag-hallucination-demo-front.onrender.com' || allowOrigin === '*',
+    `CORS preflight should allow the production frontend origin, got: ${allowOrigin}`,
+  );
 });
