@@ -1,0 +1,13 @@
+Retrieval and Embeddings in RAG
+
+The retrieval component of RAG uses dense vector representations (embeddings) to find semantically similar documents. Documents are split into chunks, each encoded into a high-dimensional vector using an embedding model.
+
+Similarity between the query embedding and document chunk embeddings is typically computed using cosine similarity. The top-k most similar chunks are retrieved and used as context.
+
+Key factors affecting retrieval quality:
+- Chunking strategy (size, overlap)
+- Embedding model quality
+- Similarity metric (cosine, dot product, Euclidean)
+- Number of retrieved documents (k)
+
+Poor retrieval can occur when relevant information uses different vocabulary than the query, or when the embedding model fails to capture domain-specific semantics.

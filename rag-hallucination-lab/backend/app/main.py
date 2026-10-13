@@ -29,6 +29,7 @@ async def lifespan(_: FastAPI):
         rag_service.model or "-",
         bool(settings.gemini_api_key),
     )
+    logger.info("CORS allowed origins: %s", ", ".join(cors_origins))
     if rag_service.provider == "gemini" and not settings.gemini_api_key:
         logger.error(
             "LLM_PROVIDER=gemini but GEMINI_API_KEY is not configured; queries "
@@ -46,7 +47,7 @@ app = FastAPI(
 
 # Origins are configurable via CORS_ORIGINS (comma-separated, or "*").
 # Credentials are disabled so that the wildcard default stays spec-compliant.
-cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+cors_origins = settings.cors_origin_list
 
 app.add_middleware(
     CORSMiddleware,

@@ -60,8 +60,14 @@ class Settings(BaseSettings):
     # Data / knowledge base
     data_dir: str = "./data"
 
-    # CORS (comma-separated list of origins, or "*" for any)
-    cors_origins: str = "*"
+    # CORS: comma-separated list of allowed origins, or "*" for any.
+    # The production frontend and the local dev server are allowed by default so
+    # a hosting dashboard left on the wildcard (or with a stale value) does not
+    # silently break the deployed app. Override with the CORS_ORIGINS env var.
+    cors_origins: str = (
+        "https://rag-hallucination-demo-front.onrender.com,"
+        "http://localhost:3000,http://127.0.0.1:3000"
+    )
 
     # Mock Mode switch.
     #   MOCK_MODE unset -> LLM_PROVIDER decides (back-compatible).
@@ -89,6 +95,22 @@ class Settings(BaseSettings):
     def is_mock(self) -> bool:
         """Effective mock state, derived from the resolved provider."""
         return self.effective_provider == "mock"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        """``CORS_ORIGINS`` parsed into a clean list, falling back to ``"*"``.
+
+        Browsers send origins without a trailing slash, so a value like
+        ``https://app.example.com/`` would never match the ``Origin`` header.
+        Normalizing here keeps the middleware effective even when the hosting
+        dashboard stores the URL with a trailing slash.
+        """
+        origins = [
+            origin.strip().rstrip("/")
+            for origin in self.cors_origins.split(",")
+            if origin.strip()
+        ]
+        return origins or ["*"]
 
     # Server
     host: str = "0.0.0.0"

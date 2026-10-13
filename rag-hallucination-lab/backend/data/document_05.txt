@@ -1,0 +1,15 @@
+Limitations of RAG in Mitigating Hallucinations
+
+While RAG reduces hallucination frequency compared to parametric LLMs, it does not eliminate them. Key limitations include:
+
+1. Retrieval failures: Relevant information may not be retrieved due to vocabulary mismatch, poor embeddings, or insufficient coverage.
+
+2. Groundedness failures: Even with correct retrieval, the generator may produce unsupported claims. The generator's parametric knowledge can override retrieved context.
+
+3. Context window limits: Only a limited number of documents can be provided as context, potentially missing relevant information.
+
+4. Citation hallucinations: Models may invent citations that appear plausible but don't correspond to actual retrieved documents.
+
+5. Semantic drift: Multi-hop reasoning can accumulate errors across retrieval and generation steps.
+
+Research by Shuster et al. (2021) shows retrieval augmentation reduces but doesn't eliminate hallucinations. Magesh et al. (2025) demonstrate that "hallucination-free" RAG is not achievable with current architectures. Huang et al. (2025) survey confirms hallucination remains an open problem even with retrieval.

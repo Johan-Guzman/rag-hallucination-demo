@@ -20,9 +20,17 @@ const API_PREFIX = '/api';
 // Optional absolute override for direct browser -> backend access.
 // When empty, requests are sent same-origin and proxied by Next.js
 // (see next.config.js), which works both in the browser and inside Docker.
+//
+// Trailing slashes are stripped (browsers/people often store the URL with one),
+// and a base that already ends with "/api" is accepted too, so a value such as
+// `https://host/api` never becomes `https://host/api/api`.
 const RAW_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? '').trim().replace(/\/+$/, '');
 
-export const API_BASE_URL = `${RAW_BASE_URL}${API_PREFIX}`;
+const BASE_WITHOUT_PREFIX = RAW_BASE_URL.endsWith(API_PREFIX)
+  ? RAW_BASE_URL.slice(0, -API_PREFIX.length).replace(/\/+$/, '')
+  : RAW_BASE_URL;
+
+export const API_BASE_URL = `${BASE_WITHOUT_PREFIX}${API_PREFIX}`;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, init);
